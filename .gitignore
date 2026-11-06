@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Assinatura (nunca versionar)
+*.jks
+*.jks.b64
+*.keystore
+key.properties
