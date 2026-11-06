@@ -1,0 +1,28 @@
+name: Atualizar goldens
+
+# Gera as imagens de referência do Linux (as usadas pelo CI) e publica como
+# artifact. Baixe, confira e commite em test/ui/goldens/linux/.
+on:
+  workflow_dispatch:
+
+jobs:
+  goldens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.9
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter test --update-goldens test/ui/exportacao_golden_test.dart
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goldens-linux
+          path: test/ui/goldens/linux/

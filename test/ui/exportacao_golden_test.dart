@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,6 +126,11 @@ void main() {
       ),
     ));
     expect(tamanho.width * 2, greaterThanOrEqualTo(1240));
-    await expectLater(find.byType(TabelaExportacao), matchesGoldenFile('goldens/escala_junho_2026.png'));
+    // A fonte é rasterizada de forma diferente em cada sistema: uma referência por SO
+    // (a do Linux, usada no CI, é gerada pelo workflow "Atualizar goldens").
+    await expectLater(
+      find.byType(TabelaExportacao),
+      matchesGoldenFile('goldens/${Platform.operatingSystem}/escala_junho_2026.png'),
+    );
   });
 }

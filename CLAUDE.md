@@ -14,7 +14,10 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs   # depois de mudar lib/data/banco.dart
 flutter analyze                                            # tem que sair sem avisos
 flutter test                                               # unitários + golden + fumaça
-flutter test --update-goldens test/ui                      # só se a mudança no layout for intencional
+flutter test --update-goldens test/ui                      # só se a mudança no layout for intencional;
+                                                           # atualiza goldens/windows. Para o Linux (CI),
+                                                           # rode o workflow "Atualizar goldens" e commite
+                                                           # o artifact em test/ui/goldens/linux/
 flutter build apk --release                                # sem key.properties assina com a chave de debug
 ```
 
