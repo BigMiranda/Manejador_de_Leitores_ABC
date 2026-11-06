@@ -94,7 +94,7 @@ class $LeitoresTable extends Leitores
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('sim'),
+    defaultValue: const Constant('nao'),
   );
   static const VerificationMeta _leFestaMeta = const VerificationMeta(
     'leFesta',
@@ -109,7 +109,7 @@ class $LeitoresTable extends Leitores
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'CHECK ("le_festa" IN (0, 1))',
     ),
-    defaultValue: const Constant(true),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _soPastoralMeta = const VerificationMeta(
     'soPastoral',
@@ -154,6 +154,17 @@ class $LeitoresTable extends Leitores
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _excluidoEmMeta = const VerificationMeta(
+    'excluidoEm',
+  );
+  @override
+  late final GeneratedColumn<String> excluidoEm = GeneratedColumn<String>(
+    'excluido_em',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -168,6 +179,7 @@ class $LeitoresTable extends Leitores
     parId,
     ultimaParticipacao,
     observacoes,
+    excluidoEm,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -264,6 +276,12 @@ class $LeitoresTable extends Leitores
         ),
       );
     }
+    if (data.containsKey('excluido_em')) {
+      context.handle(
+        _excluidoEmMeta,
+        excluidoEm.isAcceptableOrUnknown(data['excluido_em']!, _excluidoEmMeta),
+      );
+    }
     return context;
   }
 
@@ -321,6 +339,10 @@ class $LeitoresTable extends Leitores
         DriftSqlType.string,
         data['${effectivePrefix}observacoes'],
       )!,
+      excluidoEm: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}excluido_em'],
+      ),
     );
   }
 
@@ -343,6 +365,9 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
   final int? parId;
   final String? ultimaParticipacao;
   final String observacoes;
+
+  /// Exclusão lógica (ISO 8601). Null = ativo. (v2)
+  final String? excluidoEm;
   const LeitorRow({
     required this.id,
     required this.nome,
@@ -356,6 +381,7 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
     this.parId,
     this.ultimaParticipacao,
     required this.observacoes,
+    this.excluidoEm,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -378,6 +404,9 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
       map['ultima_participacao'] = Variable<String>(ultimaParticipacao);
     }
     map['observacoes'] = Variable<String>(observacoes);
+    if (!nullToAbsent || excluidoEm != null) {
+      map['excluido_em'] = Variable<String>(excluidoEm);
+    }
     return map;
   }
 
@@ -401,6 +430,9 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
           ? const Value.absent()
           : Value(ultimaParticipacao),
       observacoes: Value(observacoes),
+      excluidoEm: excluidoEm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(excluidoEm),
     );
   }
 
@@ -424,6 +456,7 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
         json['ultimaParticipacao'],
       ),
       observacoes: serializer.fromJson<String>(json['observacoes']),
+      excluidoEm: serializer.fromJson<String?>(json['excluidoEm']),
     );
   }
   @override
@@ -442,6 +475,7 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
       'parId': serializer.toJson<int?>(parId),
       'ultimaParticipacao': serializer.toJson<String?>(ultimaParticipacao),
       'observacoes': serializer.toJson<String>(observacoes),
+      'excluidoEm': serializer.toJson<String?>(excluidoEm),
     };
   }
 
@@ -458,6 +492,7 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
     Value<int?> parId = const Value.absent(),
     Value<String?> ultimaParticipacao = const Value.absent(),
     String? observacoes,
+    Value<String?> excluidoEm = const Value.absent(),
   }) => LeitorRow(
     id: id ?? this.id,
     nome: nome ?? this.nome,
@@ -473,6 +508,7 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
         ? ultimaParticipacao.value
         : this.ultimaParticipacao,
     observacoes: observacoes ?? this.observacoes,
+    excluidoEm: excluidoEm.present ? excluidoEm.value : this.excluidoEm,
   );
   LeitorRow copyWithCompanion(LeitoresCompanion data) {
     return LeitorRow(
@@ -498,6 +534,9 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
       observacoes: data.observacoes.present
           ? data.observacoes.value
           : this.observacoes,
+      excluidoEm: data.excluidoEm.present
+          ? data.excluidoEm.value
+          : this.excluidoEm,
     );
   }
 
@@ -515,7 +554,8 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
           ..write('soPastoral: $soPastoral, ')
           ..write('parId: $parId, ')
           ..write('ultimaParticipacao: $ultimaParticipacao, ')
-          ..write('observacoes: $observacoes')
+          ..write('observacoes: $observacoes, ')
+          ..write('excluidoEm: $excluidoEm')
           ..write(')'))
         .toString();
   }
@@ -534,6 +574,7 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
     parId,
     ultimaParticipacao,
     observacoes,
+    excluidoEm,
   );
   @override
   bool operator ==(Object other) =>
@@ -550,7 +591,8 @@ class LeitorRow extends DataClass implements Insertable<LeitorRow> {
           other.soPastoral == this.soPastoral &&
           other.parId == this.parId &&
           other.ultimaParticipacao == this.ultimaParticipacao &&
-          other.observacoes == this.observacoes);
+          other.observacoes == this.observacoes &&
+          other.excluidoEm == this.excluidoEm);
 }
 
 class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
@@ -566,6 +608,7 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
   final Value<int?> parId;
   final Value<String?> ultimaParticipacao;
   final Value<String> observacoes;
+  final Value<String?> excluidoEm;
   const LeitoresCompanion({
     this.id = const Value.absent(),
     this.nome = const Value.absent(),
@@ -579,6 +622,7 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
     this.parId = const Value.absent(),
     this.ultimaParticipacao = const Value.absent(),
     this.observacoes = const Value.absent(),
+    this.excluidoEm = const Value.absent(),
   });
   LeitoresCompanion.insert({
     this.id = const Value.absent(),
@@ -593,6 +637,7 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
     this.parId = const Value.absent(),
     this.ultimaParticipacao = const Value.absent(),
     this.observacoes = const Value.absent(),
+    this.excluidoEm = const Value.absent(),
   }) : nome = Value(nome);
   static Insertable<LeitorRow> custom({
     Expression<int>? id,
@@ -607,6 +652,7 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
     Expression<int>? parId,
     Expression<String>? ultimaParticipacao,
     Expression<String>? observacoes,
+    Expression<String>? excluidoEm,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -621,6 +667,7 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
       if (parId != null) 'par_id': parId,
       if (ultimaParticipacao != null) 'ultima_participacao': ultimaParticipacao,
       if (observacoes != null) 'observacoes': observacoes,
+      if (excluidoEm != null) 'excluido_em': excluidoEm,
     });
   }
 
@@ -637,6 +684,7 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
     Value<int?>? parId,
     Value<String?>? ultimaParticipacao,
     Value<String>? observacoes,
+    Value<String?>? excluidoEm,
   }) {
     return LeitoresCompanion(
       id: id ?? this.id,
@@ -651,6 +699,7 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
       parId: parId ?? this.parId,
       ultimaParticipacao: ultimaParticipacao ?? this.ultimaParticipacao,
       observacoes: observacoes ?? this.observacoes,
+      excluidoEm: excluidoEm ?? this.excluidoEm,
     );
   }
 
@@ -693,6 +742,9 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
     if (observacoes.present) {
       map['observacoes'] = Variable<String>(observacoes.value);
     }
+    if (excluidoEm.present) {
+      map['excluido_em'] = Variable<String>(excluidoEm.value);
+    }
     return map;
   }
 
@@ -710,7 +762,8 @@ class LeitoresCompanion extends UpdateCompanion<LeitorRow> {
           ..write('soPastoral: $soPastoral, ')
           ..write('parId: $parId, ')
           ..write('ultimaParticipacao: $ultimaParticipacao, ')
-          ..write('observacoes: $observacoes')
+          ..write('observacoes: $observacoes, ')
+          ..write('excluidoEm: $excluidoEm')
           ..write(')'))
         .toString();
   }
@@ -2058,8 +2111,27 @@ class $MesesTable extends Meses with TableInfo<$MesesTable, MesRow> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _versaoCalendarioMeta = const VerificationMeta(
+    'versaoCalendario',
+  );
   @override
-  List<GeneratedColumn> get $columns => [ano, mes, status, seed, pastorais];
+  late final GeneratedColumn<int> versaoCalendario = GeneratedColumn<int>(
+    'versao_calendario',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    ano,
+    mes,
+    status,
+    seed,
+    pastorais,
+    versaoCalendario,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2106,6 +2178,15 @@ class $MesesTable extends Meses with TableInfo<$MesesTable, MesRow> {
         pastorais.isAcceptableOrUnknown(data['pastorais']!, _pastoraisMeta),
       );
     }
+    if (data.containsKey('versao_calendario')) {
+      context.handle(
+        _versaoCalendarioMeta,
+        versaoCalendario.isAcceptableOrUnknown(
+          data['versao_calendario']!,
+          _versaoCalendarioMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2135,6 +2216,10 @@ class $MesesTable extends Meses with TableInfo<$MesesTable, MesRow> {
         DriftSqlType.string,
         data['${effectivePrefix}pastorais'],
       ),
+      versaoCalendario: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}versao_calendario'],
+      )!,
     );
   }
 
@@ -2154,12 +2239,16 @@ class MesRow extends DataClass implements Insertable<MesRow> {
 
   /// Sobrescrita das pastorais neste mês (JSON), ou null para usar o padrão.
   final String? pastorais;
+
+  /// Versão do calendário litúrgico já aplicada ao mês (festas automáticas). (v2)
+  final int versaoCalendario;
   const MesRow({
     required this.ano,
     required this.mes,
     required this.status,
     required this.seed,
     this.pastorais,
+    required this.versaoCalendario,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2171,6 +2260,7 @@ class MesRow extends DataClass implements Insertable<MesRow> {
     if (!nullToAbsent || pastorais != null) {
       map['pastorais'] = Variable<String>(pastorais);
     }
+    map['versao_calendario'] = Variable<int>(versaoCalendario);
     return map;
   }
 
@@ -2183,6 +2273,7 @@ class MesRow extends DataClass implements Insertable<MesRow> {
       pastorais: pastorais == null && nullToAbsent
           ? const Value.absent()
           : Value(pastorais),
+      versaoCalendario: Value(versaoCalendario),
     );
   }
 
@@ -2197,6 +2288,7 @@ class MesRow extends DataClass implements Insertable<MesRow> {
       status: serializer.fromJson<String>(json['status']),
       seed: serializer.fromJson<int>(json['seed']),
       pastorais: serializer.fromJson<String?>(json['pastorais']),
+      versaoCalendario: serializer.fromJson<int>(json['versaoCalendario']),
     );
   }
   @override
@@ -2208,6 +2300,7 @@ class MesRow extends DataClass implements Insertable<MesRow> {
       'status': serializer.toJson<String>(status),
       'seed': serializer.toJson<int>(seed),
       'pastorais': serializer.toJson<String?>(pastorais),
+      'versaoCalendario': serializer.toJson<int>(versaoCalendario),
     };
   }
 
@@ -2217,12 +2310,14 @@ class MesRow extends DataClass implements Insertable<MesRow> {
     String? status,
     int? seed,
     Value<String?> pastorais = const Value.absent(),
+    int? versaoCalendario,
   }) => MesRow(
     ano: ano ?? this.ano,
     mes: mes ?? this.mes,
     status: status ?? this.status,
     seed: seed ?? this.seed,
     pastorais: pastorais.present ? pastorais.value : this.pastorais,
+    versaoCalendario: versaoCalendario ?? this.versaoCalendario,
   );
   MesRow copyWithCompanion(MesesCompanion data) {
     return MesRow(
@@ -2231,6 +2326,9 @@ class MesRow extends DataClass implements Insertable<MesRow> {
       status: data.status.present ? data.status.value : this.status,
       seed: data.seed.present ? data.seed.value : this.seed,
       pastorais: data.pastorais.present ? data.pastorais.value : this.pastorais,
+      versaoCalendario: data.versaoCalendario.present
+          ? data.versaoCalendario.value
+          : this.versaoCalendario,
     );
   }
 
@@ -2241,13 +2339,15 @@ class MesRow extends DataClass implements Insertable<MesRow> {
           ..write('mes: $mes, ')
           ..write('status: $status, ')
           ..write('seed: $seed, ')
-          ..write('pastorais: $pastorais')
+          ..write('pastorais: $pastorais, ')
+          ..write('versaoCalendario: $versaoCalendario')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(ano, mes, status, seed, pastorais);
+  int get hashCode =>
+      Object.hash(ano, mes, status, seed, pastorais, versaoCalendario);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2256,7 +2356,8 @@ class MesRow extends DataClass implements Insertable<MesRow> {
           other.mes == this.mes &&
           other.status == this.status &&
           other.seed == this.seed &&
-          other.pastorais == this.pastorais);
+          other.pastorais == this.pastorais &&
+          other.versaoCalendario == this.versaoCalendario);
 }
 
 class MesesCompanion extends UpdateCompanion<MesRow> {
@@ -2265,6 +2366,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
   final Value<String> status;
   final Value<int> seed;
   final Value<String?> pastorais;
+  final Value<int> versaoCalendario;
   final Value<int> rowid;
   const MesesCompanion({
     this.ano = const Value.absent(),
@@ -2272,6 +2374,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
     this.status = const Value.absent(),
     this.seed = const Value.absent(),
     this.pastorais = const Value.absent(),
+    this.versaoCalendario = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MesesCompanion.insert({
@@ -2280,6 +2383,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
     this.status = const Value.absent(),
     this.seed = const Value.absent(),
     this.pastorais = const Value.absent(),
+    this.versaoCalendario = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : ano = Value(ano),
        mes = Value(mes);
@@ -2289,6 +2393,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
     Expression<String>? status,
     Expression<int>? seed,
     Expression<String>? pastorais,
+    Expression<int>? versaoCalendario,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2297,6 +2402,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
       if (status != null) 'status': status,
       if (seed != null) 'seed': seed,
       if (pastorais != null) 'pastorais': pastorais,
+      if (versaoCalendario != null) 'versao_calendario': versaoCalendario,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2307,6 +2413,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
     Value<String>? status,
     Value<int>? seed,
     Value<String?>? pastorais,
+    Value<int>? versaoCalendario,
     Value<int>? rowid,
   }) {
     return MesesCompanion(
@@ -2315,6 +2422,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
       status: status ?? this.status,
       seed: seed ?? this.seed,
       pastorais: pastorais ?? this.pastorais,
+      versaoCalendario: versaoCalendario ?? this.versaoCalendario,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2337,6 +2445,9 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
     if (pastorais.present) {
       map['pastorais'] = Variable<String>(pastorais.value);
     }
+    if (versaoCalendario.present) {
+      map['versao_calendario'] = Variable<int>(versaoCalendario.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2351,6 +2462,7 @@ class MesesCompanion extends UpdateCompanion<MesRow> {
           ..write('status: $status, ')
           ..write('seed: $seed, ')
           ..write('pastorais: $pastorais, ')
+          ..write('versaoCalendario: $versaoCalendario, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2828,6 +2940,7 @@ typedef $$LeitoresTableCreateCompanionBuilder = LeitoresCompanion Function({
   Value<int?> parId,
   Value<String?> ultimaParticipacao,
   Value<String> observacoes,
+  Value<String?> excluidoEm,
 });
 typedef $$LeitoresTableUpdateCompanionBuilder = LeitoresCompanion Function({
   Value<int> id,
@@ -2842,6 +2955,7 @@ typedef $$LeitoresTableUpdateCompanionBuilder = LeitoresCompanion Function({
   Value<int?> parId,
   Value<String?> ultimaParticipacao,
   Value<String> observacoes,
+  Value<String?> excluidoEm,
 });
 
 final class $$LeitoresTableReferences
@@ -2933,6 +3047,11 @@ class $$LeitoresTableFilterComposer extends Composer<_$Banco, $LeitoresTable> {
 
   ColumnFilters<String> get observacoes => $composableBuilder(
     column: $table.observacoes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get excluidoEm => $composableBuilder(
+    column: $table.excluidoEm,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3030,6 +3149,11 @@ class $$LeitoresTableOrderingComposer
     column: $table.observacoes,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get excluidoEm => $composableBuilder(
+    column: $table.excluidoEm,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LeitoresTableAnnotationComposer
@@ -3084,6 +3208,11 @@ class $$LeitoresTableAnnotationComposer
 
   GeneratedColumn<String> get observacoes => $composableBuilder(
     column: $table.observacoes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get excluidoEm => $composableBuilder(
+    column: $table.excluidoEm,
     builder: (column) => column,
   );
 
@@ -3153,6 +3282,7 @@ class $$LeitoresTableTableManager
                 Value<int?> parId = const Value.absent(),
                 Value<String?> ultimaParticipacao = const Value.absent(),
                 Value<String> observacoes = const Value.absent(),
+                Value<String?> excluidoEm = const Value.absent(),
               }) => LeitoresCompanion(
                 id: id,
                 nome: nome,
@@ -3166,6 +3296,7 @@ class $$LeitoresTableTableManager
                 parId: parId,
                 ultimaParticipacao: ultimaParticipacao,
                 observacoes: observacoes,
+                excluidoEm: excluidoEm,
               ),
           createCompanionCallback:
               ({
@@ -3181,6 +3312,7 @@ class $$LeitoresTableTableManager
                 Value<int?> parId = const Value.absent(),
                 Value<String?> ultimaParticipacao = const Value.absent(),
                 Value<String> observacoes = const Value.absent(),
+                Value<String?> excluidoEm = const Value.absent(),
               }) => LeitoresCompanion.insert(
                 id: id,
                 nome: nome,
@@ -3194,6 +3326,7 @@ class $$LeitoresTableTableManager
                 parId: parId,
                 ultimaParticipacao: ultimaParticipacao,
                 observacoes: observacoes,
+                excluidoEm: excluidoEm,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -4241,6 +4374,7 @@ typedef $$MesesTableCreateCompanionBuilder = MesesCompanion Function({
   Value<String> status,
   Value<int> seed,
   Value<String?> pastorais,
+  Value<int> versaoCalendario,
   Value<int> rowid,
 });
 typedef $$MesesTableUpdateCompanionBuilder = MesesCompanion Function({
@@ -4249,6 +4383,7 @@ typedef $$MesesTableUpdateCompanionBuilder = MesesCompanion Function({
   Value<String> status,
   Value<int> seed,
   Value<String?> pastorais,
+  Value<int> versaoCalendario,
   Value<int> rowid,
 });
 
@@ -4282,6 +4417,11 @@ class $$MesesTableFilterComposer extends Composer<_$Banco, $MesesTable> {
 
   ColumnFilters<String> get pastorais => $composableBuilder(
     column: $table.pastorais,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get versaoCalendario => $composableBuilder(
+    column: $table.versaoCalendario,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4318,6 +4458,11 @@ class $$MesesTableOrderingComposer extends Composer<_$Banco, $MesesTable> {
     column: $table.pastorais,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get versaoCalendario => $composableBuilder(
+    column: $table.versaoCalendario,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$MesesTableAnnotationComposer extends Composer<_$Banco, $MesesTable> {
@@ -4342,6 +4487,11 @@ class $$MesesTableAnnotationComposer extends Composer<_$Banco, $MesesTable> {
 
   GeneratedColumn<String> get pastorais =>
       $composableBuilder(column: $table.pastorais, builder: (column) => column);
+
+  GeneratedColumn<int> get versaoCalendario => $composableBuilder(
+    column: $table.versaoCalendario,
+    builder: (column) => column,
+  );
 }
 
 class $$MesesTableTableManager
@@ -4377,6 +4527,7 @@ class $$MesesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<int> seed = const Value.absent(),
                 Value<String?> pastorais = const Value.absent(),
+                Value<int> versaoCalendario = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MesesCompanion(
                 ano: ano,
@@ -4384,6 +4535,7 @@ class $$MesesTableTableManager
                 status: status,
                 seed: seed,
                 pastorais: pastorais,
+                versaoCalendario: versaoCalendario,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4393,6 +4545,7 @@ class $$MesesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<int> seed = const Value.absent(),
                 Value<String?> pastorais = const Value.absent(),
+                Value<int> versaoCalendario = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MesesCompanion.insert(
                 ano: ano,
@@ -4400,6 +4553,7 @@ class $$MesesTableTableManager
                 status: status,
                 seed: seed,
                 pastorais: pastorais,
+                versaoCalendario: versaoCalendario,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

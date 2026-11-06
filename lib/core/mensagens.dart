@@ -114,6 +114,8 @@ String montarMensagem({
       'animador': valor(Funcao.animador),
       'leitura1': valor(Funcao.leitura1),
       'leitura2': valor(Funcao.leitura2),
+      'leitura3': valor(Funcao.leitura3),
+      'epistola': valor(Funcao.epistola),
       'preces': valor(Funcao.preces),
     }));
   }

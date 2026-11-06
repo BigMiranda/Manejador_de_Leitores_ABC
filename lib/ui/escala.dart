@@ -263,6 +263,14 @@ class _MenuEscala extends ConsumerWidget {
           case 'pastorais':
             if (!context.mounted) return;
             await showDialog(context: context, builder: (_) => PastoraisDoMesDialog(mes: m));
+          case 'festas':
+            final cfg = await ref.read(configProvider.future);
+            final n = await repo.incluirFestasDoCalendario(m.ano, m.mes, cfg);
+            if (context.mounted) {
+              n == 0
+                  ? avisar(context, 'Nenhuma festa do calendário faltando neste mês.')
+                  : avisarComDesfazer(context, ref, '$n celebração(ões) do calendário incluída(s)');
+            }
           case 'pdfs':
             final fim = DateTime.utc(m.ano, m.mes + 1, 0);
             if (context.mounted) avisar(context, 'Sincronizando com o ABC Litúrgico…');
@@ -286,6 +294,10 @@ class _MenuEscala extends ConsumerWidget {
         const PopupMenuItem(value: 'pdf', child: ListTile(leading: Icon(Icons.picture_as_pdf_outlined), title: Text('Exportar PDF'))),
         const PopupMenuItem(value: 'nova', child: ListTile(leading: Icon(Icons.add), title: Text('Adicionar celebração'))),
         const PopupMenuItem(value: 'pastorais', child: ListTile(leading: Icon(Icons.groups_outlined), title: Text('Pastorais do mês'))),
+        const PopupMenuItem(
+          value: 'festas',
+          child: ListTile(leading: Icon(Icons.celebration_outlined), title: Text('Incluir festas do calendário')),
+        ),
         const PopupMenuItem(value: 'pdfs', child: ListTile(leading: Icon(Icons.sync), title: Text('Sincronizar PDFs do ABC'))),
         const PopupMenuItem(value: 'estatisticas', child: ListTile(leading: Icon(Icons.insights), title: Text('Estatísticas'))),
       ],
@@ -308,6 +320,7 @@ class TabelaEscala extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final porId = {for (final l in leitores) l.id: l};
+    final nomes = ref.watch(nomesProvider).value ?? const <int, String>{};
     final celPorId = {for (final c in mes.celebracoes) c.id: c};
     final grupos = gruposDaEscala(mes.celebracoes);
     final borda = BorderSide(color: Theme.of(context).dividerColor);
@@ -377,56 +390,74 @@ class TabelaEscala extends ConsumerWidget {
         ]);
       }
 
-      final ocupados = <Funcao, Set<int>>{};
-      for (final f in _funcoes) {
-        ocupados[f] = {
-          for (final v in mes.vagas)
-            if (v.leitorId != null &&
-                !(v.celebracaoId == c.id && v.funcao == f) &&
-                celPorId[v.celebracaoId]?.data == c.data)
-              v.leitorId!,
-        };
+      Set<int> ocupados(Funcao f) => {
+            for (final v in mes.vagas)
+              if (v.leitorId != null &&
+                  !(v.celebracaoId == c.id && v.funcao == f) &&
+                  celPorId[v.celebracaoId]?.data == c.data)
+                v.leitorId!,
+          };
+
+      Widget vazia() => celula(_wFuncao, null, fundo: Theme.of(context).disabledColor.withValues(alpha: 0.05));
+
+      Widget celulaVaga(Funcao f, {String? rotulo}) {
+        if (!c.funcoes.contains(f)) return vazia();
+        final v = mes.vaga(c.id, f) ?? Vaga(celebracaoId: c.id, funcao: f);
+        final leitor = v.leitorId == null ? null : porId[v.leitorId];
+        final nome = leitor?.nome ?? (v.leitorId != null ? nomes[v.leitorId] : null) ?? v.nomeLivre ?? '';
+        // Leitor excluído que ainda está na escala também é conflito.
+        final excluido = v.leitorId != null && leitor == null;
+        final conflito = excluido ||
+            (leitor != null && motivosInelegivel(leitor, c, f, ocupadosNoDia: ocupados(f)).isNotEmpty);
+        return celula(
+          _wFuncao,
+          Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (rotulo != null) Text(rotulo, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Flexible(
+                child: Text(
+                  nome,
+                  maxLines: rotulo == null ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: conflito ? Colors.red.shade700 : null,
+                    fontStyle: v.leitorId == null && nome.isNotEmpty ? FontStyle.italic : null,
+                    decoration: excluido ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+              ),
+              if (conflito) Icon(Icons.warning_amber, size: 13, color: Colors.red.shade700),
+              if (v.travada) const Icon(Icons.lock, size: 12),
+            ]),
+          ]),
+          fundo: fundoPastoral,
+          onTap: () => editarVaga(context, ref, mes, c, v, leitores),
+          onLongPress: () => ref.read(repoProvider).definirVaga(
+                v.copyWith(travada: !v.travada),
+                descricao: v.travada ? 'Destravar célula' : 'Travar célula',
+              ),
+        );
       }
 
-      return Row(children: [
+      final principal = Row(children: [
         celula(_wData, cabecalhoCel, onTap: editar),
         celula(_wHora, horaW, fundo: fundoPastoral, onTap: editar),
-        for (final f in _funcoes)
-          if (!c.funcoes.contains(f))
-            celula(_wFuncao, null, fundo: Theme.of(context).disabledColor.withValues(alpha: 0.05))
-          else
-            Builder(builder: (context) {
-              final v = mes.vaga(c.id, f) ?? Vaga(celebracaoId: c.id, funcao: f);
-              final leitor = v.leitorId == null ? null : porId[v.leitorId];
-              final nome = leitor?.nome ?? v.nomeLivre ?? '';
-              final conflito = leitor != null && motivosInelegivel(leitor, c, f, ocupadosNoDia: ocupados[f]!).isNotEmpty;
-              return celula(
-                _wFuncao,
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Flexible(
-                    child: Text(
-                      nome,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: conflito ? Colors.red.shade700 : null,
-                        fontStyle: v.leitorId == null && nome.isNotEmpty ? FontStyle.italic : null,
-                      ),
-                    ),
-                  ),
-                  if (conflito) Icon(Icons.warning_amber, size: 13, color: Colors.red.shade700),
-                  if (v.travada) const Icon(Icons.lock, size: 12),
-                ]),
-                fundo: fundoPastoral,
-                onTap: () => editarVaga(context, ref, mes, c, v, leitores),
-                onLongPress: () => ref.read(repoProvider).definirVaga(
-                      v.copyWith(travada: !v.travada),
-                      descricao: v.travada ? 'Destravar célula' : 'Travar célula',
-                    ),
-              );
-            }),
+        for (final f in _funcoes) celulaVaga(f),
+      ]);
+      if (!TabelaExportacao.temLinhaExtra(c)) return principal;
+      // Vigília Pascal: 3ª leitura e epístola numa linha a mais.
+      return Column(children: [
+        principal,
+        Row(children: [
+          celula(_wData, null, onTap: editar),
+          celula(_wHora, null, fundo: fundoPastoral),
+          vazia(),
+          celulaVaga(Funcao.leitura3, rotulo: '3ª LEITURA'),
+          celulaVaga(Funcao.epistola, rotulo: 'EPÍSTOLA'),
+          vazia(),
+        ]),
       ]);
     }
 

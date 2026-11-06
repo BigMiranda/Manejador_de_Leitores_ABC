@@ -26,13 +26,18 @@ Requer Android 7.0 ou mais novo.
 
 1. **Leitores → Importar lista**: cole os nomes, um por linha (marcadores como `1.`, `-` e `•` são
    removidos). Aparece uma prévia com novos e repetidos antes de confirmar.
-2. Abra cada leitor que tem restrição e ajuste: animação, horários de domingo, quinta, festas, "só lê pela
-   pastoral", épocas (impedimento, preferência ou "prefere não") e com quem prefere ler junto.
+2. Todo leitor novo começa **lendo só aos domingos** ("quinta 19h30" e "feriado/festa" vêm como Não).
+   Abra cada leitor que tem restrição e ajuste: animação, horários de domingo, quinta, festas, "só lê pela
+   pastoral", épocas (impedimento, preferência ou "prefere não") e com quem prefere ler junto. Ao voltar
+   da ficha com alterações, o app pergunta se quer salvar ou descartar.
+   - **Vários de uma vez**: segure um leitor para selecionar, toque nos outros e use **Editar** (cada campo
+     pode ficar "como está") ou **Excluir** no topo da tela.
+   - Tocar de novo num filtro ativo desmarca o filtro.
 3. **Carga inicial do rodízio** (escolha uma):
    - preencha a **Última participação** na ficha de cada leitor; ou
    - vá em **Escala**, volte aos meses anteriores e lance as escalas passadas à mão (toque em cada célula).
-4. **Ajustes**: confira os horários das missas, os domingos das pastorais, o intervalo mínimo e o horário
-   da notificação (padrão 14:00).
+4. **Configurações**: confira os horários das missas, os domingos das pastorais, as **festas e Semana
+   Santa**, o intervalo mínimo e o horário da notificação (padrão 14:00).
 
 ## Uso do mês
 
@@ -41,9 +46,17 @@ Requer Android 7.0 ou mais novo.
   válida.
 - Os avisos (vaga sem candidato, par não atendido, intervalo abaixo do mínimo) aparecem no chip de avisos.
 - **Pastorais do mês** muda o domingo ou o horário de cada pastoral só naquele mês.
-- Festas encontradas no ABC Litúrgico fora do domingo aparecem como sugestão no topo do mês.
-  Novenas, Corpus Christi e outras ficam em **Adicionar celebração** (atribuição *Comunidade* = linha em
-  vermelho mesclada na exportação).
+- **Meses futuros já vêm completos**, sem depender do ABC Litúrgico: domingos, quintas e as festas que no
+  Brasil não vão para o domingo (Mãe de Deus, Cinzas, São José, Anunciação, Corpus Christi, Sagrado
+  Coração, São João, Aparecida, Finados, Imaculada, Natal), calculadas a partir da Páscoa.
+  - **Semana Santa**: Quinta-feira Santa (lava-pés) às 19h30 no lugar da missa de quinta; Sexta-feira
+    Santa sem leitura (procissão); **Vigília Pascal** com animador, 3 leituras, epístola e preces (a 3ª
+    leitura e a epístola aparecem numa linha a mais na escala).
+  - Horários e quais festas entram: **Configurações → Festas e Semana Santa**. Num mês já aberto, use o
+    menu **Incluir festas do calendário**.
+- Outras festas encontradas no ABC Litúrgico aparecem como sugestão no topo do mês. Novenas, padroeiro e
+  outras ficam em **Adicionar celebração** (atribuição *Comunidade* = linha em vermelho mesclada na
+  exportação).
 - **Publicar mês** marca o mês como oficial. A geração considera o histórico de todos os meses anteriores
   (publicados e rascunhos).
 - **Exportar PNG / PDF** abre o compartilhamento (WhatsApp, Drive…).
@@ -58,17 +71,20 @@ Requer Android 7.0 ou mais novo.
 2. **2. Enviar PDF da liturgia** (domingo e festa): compartilha o PDF já baixado.
 3. **Marcar como enviado**.
 
-A tela Início lista os envios pendentes e atrasados. Os textos são editáveis em **Ajustes → Textos das
-mensagens**. O app nunca envia nada sozinho no WhatsApp.
+A tela Início lista os envios pendentes e atrasados. Os textos são editáveis em **Configurações → Textos
+das mensagens**. O app nunca envia nada sozinho no WhatsApp.
 
 ## Backup
 
 - Toda semana o app guarda um backup interno. Os semanais ficam 3 meses; o último de cada mês fica para
   sempre.
-- **Ajustes → Exportar backup** compartilha o arquivo `.json`: salve no Google Drive. A tela Início avisa
-  quando faz mais de 30 dias sem exportar.
+- **Configurações → Exportar backup** compartilha o arquivo `.json`: salve no Google Drive. A tela Início
+  avisa quando faz mais de 30 dias sem exportar.
 - **Restaurar** (de um arquivo ou de um backup interno) mostra uma prévia e, antes de substituir, guarda um
   backup do estado atual.
+- **Excluir leitores** pede confirmação com contagem regressiva (3 s para um, 10 s para vários). Eles saem
+  da lista e da geração, mas as escalas já feitas continuam com o nome. Para trazer de volta:
+  **Configurações → Backup → Restaurar leitores excluídos**.
 
 ---
 

@@ -1,3 +1,4 @@
+import 'calendario_liturgico.dart';
 import 'modelos.dart';
 import 'regras_epoca.dart';
 
@@ -63,6 +64,22 @@ class ModelosMensagem {
       '{leitura1}\n'
       'Segunda leitura\n'
       '{leitura2}\n'
+      'Terceira leitura\n'
+      '{leitura3}\n'
+      'Epístola\n'
+      '{epistola}\n'
+      'Preces\n'
+      '{preces}';
+
+  /// Padrão da v1.0 (sem 3ª leitura e epístola): é trocado pelo novo ao carregar.
+  static const _padraoDomingoBlocoV1 = 'Missa das {hora}\n'
+      '\n'
+      'Animador\n'
+      '{animador}\n'
+      'Primeira leitura\n'
+      '{leitura1}\n'
+      'Segunda leitura\n'
+      '{leitura2}\n'
       'Preces\n'
       '{preces}';
 
@@ -101,7 +118,9 @@ class ModelosMensagem {
       };
   factory ModelosMensagem.fromJson(Map<String, dynamic> j) => ModelosMensagem(
         domingoCabecalho: (j['domingoCabecalho'] as String?) ?? padraoDomingoCabecalho,
-        domingoBloco: (j['domingoBloco'] as String?) ?? padraoDomingoBloco,
+        domingoBloco: (j['domingoBloco'] == null || j['domingoBloco'] == _padraoDomingoBlocoV1)
+            ? padraoDomingoBloco
+            : j['domingoBloco'] as String,
         domingoRodape: (j['domingoRodape'] as String?) ?? padraoDomingoRodape,
         quinta: (j['quinta'] as String?) ?? padraoQuinta,
       );
@@ -124,6 +143,7 @@ class Configuracao {
     this.intervaloMinimoSemanas = 4,
     this.horaNotificacao = '14:00',
     this.mensagens = const ModelosMensagem(),
+    this.festasSalvas,
   });
 
   final List<ModeloMissa> missasDomingo;
@@ -132,6 +152,11 @@ class Configuracao {
   final int intervaloMinimoSemanas;
   final String horaNotificacao;
   final ModelosMensagem mensagens;
+  /// Como foi salvo (null = padrão). Use [festas].
+  final List<ConfigFesta>? festasSalvas;
+
+  /// Festas do calendário litúrgico (ativação e horários).
+  List<ConfigFesta> get festas => mesclarConfigFestas(festasSalvas ?? const []);
 
   Configuracao copyWith({
     List<ModeloMissa>? missasDomingo,
@@ -140,6 +165,7 @@ class Configuracao {
     int? intervaloMinimoSemanas,
     String? horaNotificacao,
     ModelosMensagem? mensagens,
+    List<ConfigFesta>? festas,
   }) =>
       Configuracao(
         missasDomingo: missasDomingo ?? this.missasDomingo,
@@ -148,6 +174,7 @@ class Configuracao {
         intervaloMinimoSemanas: intervaloMinimoSemanas ?? this.intervaloMinimoSemanas,
         horaNotificacao: horaNotificacao ?? this.horaNotificacao,
         mensagens: mensagens ?? this.mensagens,
+        festasSalvas: festas ?? festasSalvas,
       );
 
   Map<String, dynamic> toJson() => {
@@ -157,6 +184,7 @@ class Configuracao {
         'intervaloMinimoSemanas': intervaloMinimoSemanas,
         'horaNotificacao': horaNotificacao,
         'mensagens': mensagens.toJson(),
+        'festas': festas.map((f) => f.toJson()).toList(),
       };
 
   factory Configuracao.fromJson(Map<String, dynamic> j) {
@@ -175,6 +203,9 @@ class Configuracao {
       mensagens: j['mensagens'] == null
           ? p.mensagens
           : ModelosMensagem.fromJson((j['mensagens'] as Map).cast<String, dynamic>()),
+      festasSalvas: j['festas'] == null
+          ? null
+          : [for (final x in j['festas'] as List) ConfigFesta.fromJson((x as Map).cast<String, dynamic>())],
     );
   }
 }
@@ -190,10 +221,44 @@ DateTime? domingoNaPosicao(int ano, int mes, int posicao) {
   return posicao <= domingos.length ? domingos[posicao - 1] : null;
 }
 
-/// Cria as celebrações padrão (domingos e quintas) de um mês, já marcando
-/// as missas das pastorais. Os ids são negativos e provisórios.
+/// Cria as celebrações padrão de um mês: domingos, quintas e as festas do
+/// calendário litúrgico (que não dependem do ABC Litúrgico), já marcando as
+/// missas das pastorais. Os ids são negativos e provisórios.
+///
+/// Festa que cai no domingo só dá nome às missas do domingo; festa na quinta
+/// substitui a missa de quinta daquele dia.
 List<Celebracao> gerarCelebracoesDoMes(int ano, int mes, Configuracao cfg, {List<ConfigPastoral>? pastorais}) {
-  final ps = pastorais ?? cfg.pastorais;
+  final out = _domingosEQuintas(ano, mes, cfg, pastorais ?? cfg.pastorais);
+  var id = out.length * -1 - 1;
+  for (final f in festasDoMes(ano, mes, cfg.festas)) {
+    final domingo = f.data.weekday == DateTime.sunday;
+    if (domingo && !f.festa.valeNoDomingo) {
+      for (var i = 0; i < out.length; i++) {
+        if (out[i].data == f.data && out[i].nomeLiturgico == null) {
+          out[i] = out[i].copyWith(nomeLiturgico: () => f.festa.nome);
+        }
+      }
+      continue;
+    }
+    if (f.data.weekday == DateTime.thursday) {
+      out.removeWhere((c) => c.data == f.data && c.tipo == TipoCelebracao.quinta);
+    }
+    for (final h in f.horas) {
+      if (out.any((c) => c.data == f.data && c.hora == h)) continue;
+      out.add(Celebracao(
+        id: id--,
+        data: f.data,
+        hora: h,
+        tipo: TipoCelebracao.festa,
+        nomeLiturgico: f.festa.nome,
+        funcoes: f.festa.funcoes,
+      ));
+    }
+  }
+  return out..sort((a, b) => a.instante.compareTo(b.instante));
+}
+
+List<Celebracao> _domingosEQuintas(int ano, int mes, Configuracao cfg, List<ConfigPastoral> ps) {
   final out = <Celebracao>[];
   var id = -1;
   for (var d = 1; d <= diasNoMes(ano, mes); d++) {

@@ -10,7 +10,7 @@ Celebracao domingo(int id, String hora, {Atribuicao atribuicao = Atribuicao.leit
       data: DateTime.utc(2026, 6, 7),
       hora: hora,
       tipo: TipoCelebracao.domingo,
-      funcoes: Funcao.values,
+      funcoes: const [Funcao.animador, Funcao.leitura1, Funcao.leitura2, Funcao.preces],
       atribuicao: atribuicao,
       atribuicaoTexto: texto,
     );
@@ -105,7 +105,7 @@ Desde já agradeço a atenção e a vida de cada um!''');
       data: DateTime.utc(2026, 11, 2),
       hora: '18:00',
       tipo: TipoCelebracao.festa,
-      funcoes: Funcao.values,
+      funcoes: const [Funcao.animador, Funcao.leitura1, Funcao.leitura2, Funcao.preces],
       atribuicao: Atribuicao.pastoral,
       atribuicaoTexto: pastoralTercoHomens,
     );
@@ -170,6 +170,58 @@ Peço encarecidamente que todos cheguem com 30 minutos de antecedência.
 Desde já agradeço a atenção e compreensão de todos, que Deus abençoe infinitamente a vida de cada um!
 
 Boa missa a todos!''');
+  });
+
+  test('Vigília Pascal com 3ª leitura e epístola', () {
+    final vigilia = Celebracao(
+      id: 1,
+      data: DateTime.utc(2026, 4, 4),
+      hora: '19:00',
+      tipo: TipoCelebracao.festa,
+      nomeLiturgico: 'Vigília Pascal',
+      funcoes: const [Funcao.animador, Funcao.leitura1, Funcao.leitura2, Funcao.leitura3, Funcao.epistola, Funcao.preces],
+    );
+    final texto = montarMensagem(
+      modelos: modelos,
+      agora: DateTime(2026, 4, 3, 15),
+      missas: [
+        MissaDoDia(vigilia, {
+          Funcao.animador: 'Ana',
+          Funcao.leitura1: 'Beto',
+          Funcao.leitura2: 'Cida',
+          Funcao.leitura3: 'Dito',
+          Funcao.epistola: 'Eva',
+          Funcao.preces: null,
+        }),
+      ],
+    );
+    expect(texto, startsWith('''Boa tarde! A paz a todos vocês.
+Passando para lembrar a escala das missas de
+amanhã sábado 04/04/26 – Vigília Pascal.
+
+Missa das 19:00
+
+Animador
+Ana
+Primeira leitura
+Beto
+Segunda leitura
+Cida
+Terceira leitura
+Dito
+Epístola
+Eva
+Preces
+(a definir)
+
+Boa missa a todos.'''));
+  });
+
+  test('modelo de bloco salvo na v1.0 é atualizado; personalizado é mantido', () {
+    const v1 = 'Missa das {hora}\n\nAnimador\n{animador}\nPrimeira leitura\n{leitura1}\n'
+        'Segunda leitura\n{leitura2}\nPreces\n{preces}';
+    expect(ModelosMensagem.fromJson({'domingoBloco': v1}).domingoBloco, ModelosMensagem.padraoDomingoBloco);
+    expect(ModelosMensagem.fromJson({'domingoBloco': 'meu texto {hora}'}).domingoBloco, 'meu texto {hora}');
   });
 
   test('PDF só vai em domingo e festa', () {

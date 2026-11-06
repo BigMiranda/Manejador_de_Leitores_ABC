@@ -32,7 +32,8 @@ lib/
     modelos.dart        Leitor, RegraEpoca, Celebracao, Vaga, enums; datas "só dia" = DateTime.utc
     regras_epoca.dart   avaliar(leitor, celebracao) -> bloqueado | bonus | penalidade | neutro
     escala.dart         gerarEscala(...) determinística por seed + motivosInelegivel + Historico
-    configuracao.dart   Configuracao (modelos de missa, pastorais, intervalo, textos) + calendário do mês
+    configuracao.dart   Configuracao (modelos de missa, pastorais, festas, intervalo, textos) + calendário do mês
+    calendario_liturgico.dart  Páscoa, festas de dia de semana no Brasil, Semana Santa (ConfigFesta)
     mensagens.dart      montarMensagem (véspera), saudação, placeholders
     envios.dart         dias que pedem mensagem (sempre enviada 1 dia antes)
     abc_parser.dart     parser da listagem do ABC Litúrgico
@@ -40,7 +41,8 @@ lib/
   data/        drift (SQLite). banco.dart (+ banco.g.dart gerado e commitado), repositorio.dart
   services/    rede, arquivos e plataforma: abc_servico, backup_servico, exportacao, notificacoes, tarefas
   state/       providers Riverpod 3. `revisaoProvider` muda a cada gravação e invalida as leituras.
-  ui/          telas (inicio, leitores, leitor_form, escala, celebracao_form, estatisticas, enviar, config)
+  ui/          telas (inicio, leitores [lista, seleção, lote], leitor_form, escala, celebracao_form,
+               estatisticas, enviar, config, festas_excluidos)
 test/          core/, data/ (banco em memória), ui/ (golden da exportação + fumaça); fixtures/abc_liturgico.html
 ```
 
@@ -69,6 +71,17 @@ test/          core/, data/ (banco em memória), ui/ (golden da exportação + f
   sobrescrevíveis por mês (`Meses.pastorais`).
 - ABC: associar PDF SEMPRE pela data (o site repete rótulos). No máximo uma busca da página por execução,
   User-Agent identificável. Plano B: API de mídia do WordPress para escolha manual; ou colar a URL.
+- Leitor novo (form e importação): lê só domingo — `leQuinta = nao`, `leFesta = false`. Não mudar os já
+  cadastrados.
+- Exclusão de leitor é lógica (`leitores.excluido_em`): sai da lista e da geração, a vaga mantém o
+  `leitorId` (nome vem de `nomesProvider`, que inclui excluídos); o par do outro lado é desfeito e
+  refeito na restauração se ainda estiver livre. O nome continua único entre ativos e excluídos.
+- Calendário litúrgico: `gerarCelebracoesDoMes` inclui as festas de `festasLiturgicas` (só as que NÃO vão
+  para o domingo no Brasil). Festa no domingo só dá nome às missas; festa na quinta substitui a quinta;
+  Sexta Santa não tem celebração; Vigília Pascal tem animador, 3 leituras, epístola e preces.
+  `Meses.versao_calendario` < `versaoCalendarioAtual` faz rascunhos antigos receberem as festas uma vez.
+- Funções `leitura3`/`epistola` (`Funcao.extra`) ficam numa linha extra na tabela da tela e na exportação.
+- Data em negrito na exportação: só festa/especial em sábado.
 - Mensagem: sempre na véspera; domingo/festa levam o PDF; quinta não. Funções vazias = "(a definir)".
 - WhatsApp: só share intent (semiautomático). Nunca automatizar o envio.
 

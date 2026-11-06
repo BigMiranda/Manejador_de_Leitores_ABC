@@ -7,7 +7,11 @@ import '../core/configuracao.dart';
 import '../core/modelos.dart';
 import 'banco.dart';
 
-const versaoBackup = 1;
+/// v2: leitores.excluidoEm e meses.versaoCalendario.
+const versaoBackup = 2;
+
+/// Versão das festas automáticas aplicada aos meses (ver calendario_liturgico.dart).
+const versaoCalendarioAtual = 1;
 
 /// Um mês da escala com suas celebrações e vagas.
 class MesEscala {
@@ -108,6 +112,7 @@ class Repositorio {
         parId: r.parId,
         ultimaParticipacao: r.ultimaParticipacao == null ? null : parseDataIso(r.ultimaParticipacao!),
         observacoes: r.observacoes,
+        excluidoEm: r.excluidoEm == null ? null : DateTime.tryParse(r.excluidoEm!),
       );
 
   LeitoresCompanion _leitorCompanion(Leitor l) => LeitoresCompanion(
@@ -192,7 +197,8 @@ class Repositorio {
         'regras' => RegraRow.fromJson(j),
         'celebracoes' => CelebracaoRow.fromJson(j),
         'vagas' => VagaRow.fromJson(j),
-        'meses' => MesRow.fromJson(j),
+        // Backups v1 não têm versaoCalendario.
+        'meses' => MesRow.fromJson({'versaoCalendario': 0, ...j}),
         'envios' => EnvioRow.fromJson(j),
         'configs' => ConfigRow.fromJson(j),
         _ => throw ArgumentError(tabela),
@@ -279,8 +285,11 @@ class Repositorio {
   // Leitores
   // -------------------------------------------------------------------------
 
-  Future<List<Leitor>> leitores() async {
-    final linhas = await (db.select(db.leitores)..orderBy([(t) => OrderingTerm.asc(t.nome.collate(Collate.noCase))])).get();
+  /// Leitores ativos (com [incluirExcluidos], também os excluídos).
+  Future<List<Leitor>> leitores({bool incluirExcluidos = false}) async {
+    final q = db.select(db.leitores)..orderBy([(t) => OrderingTerm.asc(t.nome.collate(Collate.noCase))]);
+    if (!incluirExcluidos) q.where((t) => t.excluidoEm.isNull());
+    final linhas = await q.get();
     final regras = await db.select(db.regras).get();
     final porLeitor = <int, List<RegraRow>>{};
     for (final g in regras) {
@@ -289,11 +298,18 @@ class Repositorio {
     return [for (final r in linhas) _leitor(r, porLeitor[r.id] ?? const [])];
   }
 
-  Future<bool> nomeEmUso(String nome, {int? excetoId}) async {
-    final todos = await db.select(db.leitores).get();
+  /// Leitor (ativo ou excluído) com esse nome, ignorando maiúsculas e acentos.
+  Future<Leitor?> leitorComNome(String nome, {int? excetoId}) async {
     final alvo = normalizarNome(nome);
-    return todos.any((l) => l.id != excetoId && normalizarNome(l.nome) == alvo);
+    for (final l in await leitores(incluirExcluidos: true)) {
+      if (l.id != excetoId && normalizarNome(l.nome) == alvo) return l;
+    }
+    return null;
   }
+
+  Future<List<Leitor>> leitoresExcluidos() async =>
+      (await leitores(incluirExcluidos: true)).where((l) => l.excluidoEm != null).toList()
+        ..sort((a, b) => b.excluidoEm!.compareTo(a.excluidoEm!));
 
   /// Insere (id 0) ou atualiza o leitor, mantendo o par bidirecional.
   Future<int> salvarLeitor(Leitor l) => _registrar(l.id == 0 ? 'Novo leitor' : 'Editar ${l.nome}', () async {
@@ -331,19 +347,54 @@ class Repositorio {
     }
   }
 
-  /// Exclui o leitor. As vagas que ele ocupava guardam o nome em texto.
-  Future<void> excluirLeitor(int id) => _registrar('Excluir leitor', () async {
-        final r = await (db.select(db.leitores)..where((t) => t.id.equals(id))).getSingle();
-        await (db.update(db.vagas)..where((t) => t.leitorId.equals(id)))
-            .write(VagasCompanion(leitorId: const Value(null), nomeLivre: Value(r.nome)));
-        await (db.update(db.leitores)..where((t) => t.parId.equals(id)))
+  /// Exclusão lógica: o leitor some da lista e da geração. As escalas já
+  /// feitas continuam com o nome dele. Quem lia junto com ele perde o par.
+  Future<void> excluirLeitores(List<int> ids) =>
+      _registrar(ids.length == 1 ? 'Excluir leitor' : 'Excluir ${ids.length} leitores', () async {
+        final agora = DateTime.now().toIso8601String();
+        await (db.update(db.leitores)..where((t) => t.id.isIn(ids)))
+            .write(LeitoresCompanion(excluidoEm: Value(agora)));
+        await (db.update(db.leitores)..where((t) => t.parId.isIn(ids) & t.id.isNotIn(ids)))
             .write(const LeitoresCompanion(parId: Value(null)));
-        await (db.delete(db.leitores)..where((t) => t.id.equals(id))).go();
       });
 
+  /// Restaura leitores excluídos, refazendo o par se o outro ainda estiver livre.
+  Future<void> restaurarLeitores(List<int> ids) =>
+      _registrar(ids.length == 1 ? 'Restaurar leitor' : 'Restaurar ${ids.length} leitores', () async {
+        await (db.update(db.leitores)..where((t) => t.id.isIn(ids)))
+            .write(const LeitoresCompanion(excluidoEm: Value(null)));
+        for (final id in ids) {
+          final l = await (db.select(db.leitores)..where((t) => t.id.equals(id))).getSingle();
+          if (l.parId == null) continue;
+          final par = await (db.select(db.leitores)..where((t) => t.id.equals(l.parId!))).getSingleOrNull();
+          final livre = par != null && par.excluidoEm == null && (par.parId == null || par.parId == id);
+          if (livre) {
+            await (db.update(db.leitores)..where((t) => t.id.equals(par.id)))
+                .write(LeitoresCompanion(parId: Value(id)));
+          } else {
+            await (db.update(db.leitores)..where((t) => t.id.equals(id)))
+                .write(const LeitoresCompanion(parId: Value(null)));
+          }
+        }
+      });
+
+  /// Grava vários leitores num só passo de desfazer (edição em lote; não mexe no par).
+  Future<void> atualizarLeitores(List<Leitor> ls) =>
+      _registrar('Editar ${ls.length} leitores', () async {
+        for (final l in ls) {
+          await (db.update(db.leitores)..where((t) => t.id.equals(l.id)))
+              .write(_leitorCompanion(l).copyWith(parId: const Value.absent()));
+          await (db.delete(db.regras)..where((t) => t.leitorId.equals(l.id))).go();
+          for (final r in l.regras) {
+            await db.into(db.regras).insert(RegrasCompanion.insert(leitorId: l.id, dados: jsonEncode(r.toJson())));
+          }
+        }
+      });
+
+  /// Novos leitores com os valores padrão de [Leitor].
   Future<void> importarNomes(List<String> nomes) => _registrar('Importar ${nomes.length} leitores', () async {
         for (final n in nomes) {
-          await db.into(db.leitores).insert(LeitoresCompanion.insert(nome: n.trim()));
+          await db.into(db.leitores).insert(_leitorCompanion(Leitor(id: 0, nome: n.trim())));
         }
       });
 
@@ -353,24 +404,76 @@ class Repositorio {
 
   String _prefixoMes(int ano, int mes) => '${ano.toString().padLeft(4, '0')}-${mes.toString().padLeft(2, '0')}-';
 
-  /// Abre o mês, criando domingos, quintas e vagas na primeira vez.
+  Future<void> _inserirCelebracao(Celebracao c) async {
+    final id = await db.into(db.celebracoes).insert(_celebracaoCompanion(c));
+    for (final f in c.funcoes) {
+      await db.into(db.vagas).insert(VagasCompanion.insert(celebracaoId: id, funcao: f.name));
+    }
+  }
+
+  /// Abre o mês, criando domingos, quintas, festas do calendário e vagas na
+  /// primeira vez. Rascunhos criados antes das festas automáticas as recebem
+  /// uma vez (meses publicados só pelo menu "Incluir festas do calendário").
   Future<MesEscala> abrirMes(int ano, int mes, Configuracao cfg) async {
-    var criou = false;
+    var mudou = false;
     await db.transaction(() async {
       final existe = await (db.select(db.meses)..where((t) => t.ano.equals(ano) & t.mes.equals(mes))).getSingleOrNull();
-      if (existe != null) return;
-      criou = true;
-      await db.into(db.meses).insert(MesesCompanion.insert(ano: ano, mes: mes, seed: Value(ano * 100 + mes)));
-      for (final c in gerarCelebracoesDoMes(ano, mes, cfg)) {
-        final id = await db.into(db.celebracoes).insert(_celebracaoCompanion(c));
-        for (final f in c.funcoes) {
-          await db.into(db.vagas).insert(VagasCompanion.insert(celebracaoId: id, funcao: f.name));
+      if (existe == null) {
+        mudou = true;
+        await db.into(db.meses).insert(MesesCompanion.insert(
+              ano: ano,
+              mes: mes,
+              seed: Value(ano * 100 + mes),
+              versaoCalendario: const Value(versaoCalendarioAtual),
+            ));
+        for (final c in gerarCelebracoesDoMes(ano, mes, cfg)) {
+          await _inserirCelebracao(c);
         }
+      } else if (existe.versaoCalendario < versaoCalendarioAtual) {
+        if (existe.status != 'publicado') mudou = await _incluirFestas(ano, mes, cfg) > 0;
+        await (db.update(db.meses)..where((t) => t.ano.equals(ano) & t.mes.equals(mes)))
+            .write(const MesesCompanion(versaoCalendario: Value(versaoCalendarioAtual)));
       }
     });
-    if (criou) _mudou();
+    if (mudou) _mudou();
     return mesEscala(ano, mes);
   }
+
+  /// Acrescenta ao mês as festas do calendário que faltam. Na quinta de festa,
+  /// a missa de quinta sai se ainda não tiver ninguém escalado.
+  Future<int> _incluirFestas(int ano, int mes, Configuracao cfg) async {
+    final atuais = (await (db.select(db.celebracoes)..where((t) => t.data.like('${_prefixoMes(ano, mes)}%'))).get())
+        .map(_celebracao)
+        .toList();
+    final vagas = await vagasDe(atuais.map((c) => c.id));
+    var alteracoes = 0;
+    for (final nova in gerarCelebracoesDoMes(ano, mes, cfg)) {
+      if (nova.tipo == TipoCelebracao.domingo && nova.nomeLiturgico != null) {
+        for (final c in atuais.where((c) => c.data == nova.data && c.hora == nova.hora && c.nomeLiturgico == null)) {
+          await (db.update(db.celebracoes)..where((t) => t.id.equals(c.id)))
+              .write(CelebracoesCompanion(nomeLiturgico: Value(nova.nomeLiturgico)));
+          alteracoes++;
+        }
+        continue;
+      }
+      if (nova.tipo != TipoCelebracao.festa) continue;
+      if (atuais.any((c) => c.data == nova.data && c.hora == nova.hora)) continue;
+      if (nova.data.weekday == DateTime.thursday) {
+        for (final q in atuais.where((c) => c.data == nova.data && c.tipo == TipoCelebracao.quinta)) {
+          final vazia = vagas.where((v) => v.celebracaoId == q.id).every((v) => v.vazia && !v.travada);
+          if (vazia) await (db.delete(db.celebracoes)..where((t) => t.id.equals(q.id))).go();
+        }
+      }
+      await _inserirCelebracao(nova);
+      atuais.add(nova);
+      alteracoes++;
+    }
+    return alteracoes;
+  }
+
+  /// Menu "Incluir festas do calendário" (vale também para meses publicados).
+  Future<int> incluirFestasDoCalendario(int ano, int mes, Configuracao cfg) =>
+      _registrar('Incluir festas do calendário', () => _incluirFestas(ano, mes, cfg));
 
   Future<MesEscala> mesEscala(int ano, int mes) async {
     final m = await (db.select(db.meses)..where((t) => t.ano.equals(ano) & t.mes.equals(mes))).getSingleOrNull();

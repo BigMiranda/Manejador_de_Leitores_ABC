@@ -51,10 +51,16 @@ void main() {
   });
 
   group('calendário do mês', () {
-    test('junho/2026: domingos, quintas e pastorais padrão', () {
+    test('junho/2026: domingos, quintas, festas e pastorais padrão', () {
       final cels = gerarCelebracoesDoMes(2026, 6, const Configuracao());
       expect(cels.where((c) => c.tipo == TipoCelebracao.domingo), hasLength(4 * 3));
-      expect(cels.where((c) => c.tipo == TipoCelebracao.quinta), hasLength(4));
+      // Corpus Christi (quinta 04/06) substitui a missa de quinta.
+      expect(cels.where((c) => c.tipo == TipoCelebracao.quinta).map((c) => c.data.day), [11, 18, 25]);
+      expect(cels.where((c) => c.tipo == TipoCelebracao.festa).map((c) => (c.data.day, c.hora, c.nomeLiturgico)), [
+        (4, '19:00', 'Corpus Christi'),
+        (12, '19:30', 'Sagrado Coração de Jesus'),
+        (24, '19:30', 'Natividade de São João Batista'),
+      ]);
       final pastorais = cels.where((c) => c.atribuicao == Atribuicao.pastoral).toList();
       expect(pastorais.map((c) => (c.data.day, c.hora, c.atribuicaoTexto)), [
         (7, '18:00', pastoralTercoMulheres),
@@ -79,9 +85,9 @@ void main() {
         historico: const {},
         referencia: DateTime(2026, 6, 1),
       );
-      // 4 domingos x 3 missas x 4 funções - 2 missas de pastoral + 4 quintas x 3.
-      expect(e.vagas, 40 + 12);
-      expect(e.intervaloMedioMeses, closeTo(100 / 52, 0.001));
+      // 4 domingos x 3 missas x 4 funções - 2 missas de pastoral + 3 quintas x 3 + 3 festas x 4.
+      expect(e.vagas, 40 + 9 + 12);
+      expect(e.intervaloMedioMeses, closeTo(100 / 61, 0.001));
     });
   });
 }

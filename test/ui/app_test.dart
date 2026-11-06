@@ -50,7 +50,38 @@ void main() {
     expect(find.text('Tita'), findsOneWidget);
     expect(find.text('Bia'), findsOneWidget);
 
-    await tester.tap(find.text('Ajustes').last);
+    // Filtro: tocar de novo desmarca.
+    final chip = find.widgetWithText(FilterChip, 'Animadores');
+    await tester.ensureVisible(chip);
+    await tester.pump();
+    await tester.tap(chip);
+    await esperar(tester);
+    expect(find.text('Nenhum leitor neste filtro.'), findsOneWidget);
+    await tester.tap(chip);
+    await esperar(tester);
+    expect(find.text('Tita'), findsOneWidget);
+
+    // Segurar seleciona; excluir 2 tem contagem de 10 s.
+    await tester.longPress(find.text('Tita'));
+    await tester.pump();
+    await tester.tap(find.text('Bia'));
+    await tester.pump();
+    expect(find.text('2 selecionado(s)'), findsOneWidget);
+    await tester.tap(find.byTooltip('Excluir'));
+    await tester.pump();
+    expect(find.text('Excluir 2 leitores?'), findsOneWidget);
+    expect(find.textContaining('Restaurar leitores excluídos'), findsOneWidget);
+    expect(find.text('Excluir (10)'), findsOneWidget);
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    await tester.tap(find.text('Excluir'));
+    await esperar(tester);
+    expect(find.text('Tita'), findsNothing);
+    expect(find.text('Bia'), findsNothing);
+    expect(find.text('Rosa'), findsOneWidget);
+
+    await tester.tap(find.text('Configurações').last);
     await esperar(tester);
     expect(find.text('Missas de domingo'), findsOneWidget);
 

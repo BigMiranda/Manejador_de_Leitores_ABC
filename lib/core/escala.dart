@@ -115,6 +115,7 @@ List<String> motivosInelegivel(
   Set<int> ocupadosNoDia = const {},
 }) {
   final m = <String>[];
+  if (l.excluidoEm != null) m.add('Leitor excluído');
   if (!l.vaiLer) m.add('Não vai ler');
   if (c.atribuicao == Atribuicao.pastoral) {
     if (l.soPastoral == null ||

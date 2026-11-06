@@ -12,12 +12,15 @@ class Leitores extends Table {
   TextColumn get fazAnimacao => text().withDefault(const Constant('nao'))();
   BoolColumn get leDomingo => boolean().withDefault(const Constant(true))();
   TextColumn get horariosDomingo => text().withDefault(const Constant('07:00,09:00,18:00'))();
-  TextColumn get leQuinta => text().withDefault(const Constant('sim'))();
-  BoolColumn get leFesta => boolean().withDefault(const Constant(true))();
+  TextColumn get leQuinta => text().withDefault(const Constant('nao'))();
+  BoolColumn get leFesta => boolean().withDefault(const Constant(false))();
   TextColumn get soPastoral => text().nullable()();
   IntColumn get parId => integer().nullable()();
   TextColumn get ultimaParticipacao => text().nullable()();
   TextColumn get observacoes => text().withDefault(const Constant(''))();
+
+  /// Exclusão lógica (ISO 8601). Null = ativo. (v2)
+  TextColumn get excluidoEm => text().nullable()();
 }
 
 @DataClassName('RegraRow')
@@ -72,6 +75,9 @@ class Meses extends Table {
   /// Sobrescrita das pastorais neste mês (JSON), ou null para usar o padrão.
   TextColumn get pastorais => text().nullable()();
 
+  /// Versão do calendário litúrgico já aplicada ao mês (festas automáticas). (v2)
+  IntColumn get versaoCalendario => integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {ano, mes};
 }
@@ -104,10 +110,16 @@ class Banco extends _$Banco {
             ));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, de, para) async {
+          if (de < 2) {
+            await m.addColumn(leitores, leitores.excluidoEm);
+            await m.addColumn(meses, meses.versaoCalendario);
+          }
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },

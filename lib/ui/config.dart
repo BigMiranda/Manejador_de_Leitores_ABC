@@ -10,6 +10,7 @@ import '../services/backup_servico.dart';
 import '../services/notificacoes.dart';
 import '../state/providers.dart';
 import 'comum.dart';
+import 'festas_excluidos.dart';
 
 class ConfigPage extends ConsumerWidget {
   const ConfigPage({super.key});
@@ -19,7 +20,7 @@ class ConfigPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ajustes')),
+      appBar: AppBar(title: const Text('Configurações')),
       body: Carregando(ref.watch(configProvider), builder: (cfg) {
         return ListView(padding: const EdgeInsets.only(bottom: 32), children: [
           const Secao('Missas de domingo'),
@@ -35,6 +36,13 @@ class ConfigPage extends ConsumerWidget {
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Text('Os modelos valem para os meses abertos daqui em diante.', style: TextStyle(fontSize: 12)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.celebration_outlined),
+            title: const Text('Festas e Semana Santa'),
+            subtitle: Text('${cfg.festas.where((f) => f.ativa).length} de ${cfg.festas.length} ativas · horários'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FestasPage())),
           ),
           Secao('Domingos das pastorais',
               trailing: TextButton.icon(
@@ -284,6 +292,12 @@ class _BackupTiles extends ConsumerWidget {
         },
       ),
       ListTile(
+        leading: const Icon(Icons.restore_from_trash_outlined),
+        title: const Text('Restaurar leitores excluídos'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RestaurarExcluidosPage())),
+      ),
+      ListTile(
         leading: const Icon(Icons.history),
         title: const Text('Backups internos'),
         subtitle: const Text('Semanais (3 meses) e mensais (para sempre)'),
@@ -406,7 +420,7 @@ class _TextosPageState extends ConsumerState<TextosPage> {
             padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Text(
               'Placeholders: {saudacao} {diaSemana} {data} {nomeFesta} {escalaAtualizada} '
-              '{hora} {animador} {leitura1} {leitura2} {preces}.\n'
+              '{hora} {animador} {leitura1} {leitura2} {leitura3} {epistola} {preces}.\n'
               'Uma linha com placeholder de função que a missa não tem é removida junto com o rótulo acima dela.',
               style: TextStyle(fontSize: 12),
             ),

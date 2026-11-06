@@ -63,10 +63,15 @@ class TabelaExportacao extends StatelessWidget {
   static const _vermelho = Color(0xFFD00000);
   static const _fonte = 'Roboto';
 
+  /// Celebração com 3ª leitura/epístola (Vigília Pascal) ocupa uma linha a mais.
+  static bool temLinhaExtra(Celebracao c) =>
+      c.atribuicao != Atribuicao.comunidade && c.funcoes.any((f) => f.extra);
+
   static int _linhas(MesEscala mes) {
     final grupos = gruposDaEscala(mes.celebracoes);
-    // título + cabeçalho + (branco + linhas) por grupo + branco final + rodapé
-    return 2 + grupos.fold<int>(0, (s, g) => s + 1 + g.length) + 2;
+    final extras = mes.celebracoes.where(temLinhaExtra).length;
+    // título + cabeçalho + (branco + linhas) por grupo + extras + branco final + rodapé
+    return 2 + grupos.fold<int>(0, (s, g) => s + 1 + g.length) + extras + 2;
   }
 
   /// +1 px para as bordas esquerda e superior da tabela.
@@ -135,9 +140,11 @@ class TabelaExportacao extends StatelessWidget {
         _celula(_wDe(2, 5), c.atribuicaoTexto ?? '', estilo: vermelho),
       ]);
     }
-    final destaqueData = c.tipo == TipoCelebracao.festa || c.tipo == TipoCelebracao.especial;
+    // Festas em sábado com data em negrito.
+    final destaqueData = (c.tipo == TipoCelebracao.festa || c.tipo == TipoCelebracao.especial) &&
+        c.data.weekday == DateTime.saturday;
     final funcoes = [Funcao.animador, Funcao.leitura1, Funcao.leitura2, Funcao.preces];
-    return Row(children: [
+    final principal = Row(children: [
       _celula(_w(0), dataBr(c.data), estilo: _estilo(negrito: destaqueData)),
       _celula(_w(1), c.hora, estilo: _estilo(negrito: destaqueData), destacarTexto: pastoral),
       for (var i = 0; i < funcoes.length; i++)
@@ -146,6 +153,24 @@ class TabelaExportacao extends StatelessWidget {
           c.funcoes.contains(funcoes[i]) ? _nome(mes.vaga(c.id, funcoes[i])) : '',
           destacarTexto: pastoral,
         ),
+    ]);
+    if (!temLinhaExtra(c)) return principal;
+    String extra(Funcao f, String rotulo) {
+      if (!c.funcoes.contains(f)) return '';
+      final n = _nome(mes.vaga(c.id, f));
+      return n.isEmpty ? '$rotulo:' : '$rotulo: $n';
+    }
+
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      principal,
+      Row(children: [
+        _celula(_w(0), ''),
+        _celula(_w(1), ''),
+        _celula(_w(2), ''),
+        _celula(_w(3), extra(Funcao.leitura3, '3ª'), destacarTexto: pastoral),
+        _celula(_w(4), extra(Funcao.epistola, 'Epístola'), destacarTexto: pastoral),
+        _celula(_w(5), ''),
+      ]),
     ]);
   }
 

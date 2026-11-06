@@ -35,9 +35,16 @@ final leitoresProvider = FutureProvider<List<Leitor>>((ref) {
   return ref.watch(repoProvider).leitores();
 });
 
+/// Nome de cada leitor por id, inclusive os excluídos (que seguem nas escalas já feitas).
 final nomesProvider = FutureProvider<Map<int, String>>((ref) async {
-  final ls = await ref.watch(leitoresProvider.future);
+  ref.watch(revisaoProvider);
+  final ls = await ref.watch(repoProvider).leitores(incluirExcluidos: true);
   return {for (final l in ls) l.id: l.nome};
+});
+
+final excluidosProvider = FutureProvider<List<Leitor>>((ref) {
+  ref.watch(revisaoProvider);
+  return ref.watch(repoProvider).leitoresExcluidos();
 });
 
 /// Mês exibido na aba Escala.

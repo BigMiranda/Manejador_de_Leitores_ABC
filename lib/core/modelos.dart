@@ -86,7 +86,13 @@ enum Funcao {
   animador('Animador', 'ANIMADOR'),
   leitura1('1ª Leitura', '1ª LEITURA'),
   leitura2('2ª Leitura', '2ª LEITURA'),
+  // Só na Vigília Pascal (e onde o usuário marcar).
+  leitura3('3ª Leitura', '3ª LEITURA'),
+  epistola('Epístola', 'EPÍSTOLA'),
   preces('Preces', 'PRECES');
+
+  /// Funções que não cabem nas 4 colunas da escala (vão numa linha extra).
+  bool get extra => this == leitura3 || this == epistola;
 
   const Funcao(this.rotulo, this.cabecalho);
   final String rotulo;
@@ -190,14 +196,18 @@ class Leitor {
     this.fazAnimacao = FazAnimacao.nao,
     this.leDomingo = true,
     this.horariosDomingo = const {'07:00', '09:00', '18:00'},
-    this.leQuinta = LeQuinta.sim,
-    this.leFesta = true,
+    this.leQuinta = LeQuinta.nao,
+    this.leFesta = false,
     this.soPastoral,
     this.regras = const [],
     this.parId,
     this.ultimaParticipacao,
     this.observacoes = '',
+    this.excluidoEm,
   });
+
+  /// Exclusão lógica: some da lista e da geração, mas pode ser restaurado.
+  final DateTime? excluidoEm;
 
   final int id;
   final String nome;
@@ -219,7 +229,7 @@ class Leitor {
   final DateTime? ultimaParticipacao;
   final String observacoes;
 
-  bool get doRodizioGeral => vaiLer && soPastoral == null;
+  bool get doRodizioGeral => vaiLer && soPastoral == null && excluidoEm == null;
 
   Leitor copyWith({
     int? id,
@@ -250,6 +260,7 @@ class Leitor {
         parId: parId != null ? parId() : this.parId,
         ultimaParticipacao: ultimaParticipacao != null ? ultimaParticipacao() : this.ultimaParticipacao,
         observacoes: observacoes ?? this.observacoes,
+        excluidoEm: excluidoEm,
       );
 }
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,8 +29,60 @@ class _LeitorFormPageState extends ConsumerState<LeitorFormPage> {
     text: _l.soPastoral != null && !_pastoraisConhecidas.contains(_l.soPastoral) ? _l.soPastoral : '',
   );
   String? _erroNome;
+  late final String _assinaturaInicial;
 
   static const _pastoraisConhecidas = [pastoralTercoHomens, pastoralTercoMulheres];
+
+  @override
+  void initState() {
+    super.initState();
+    _assinaturaInicial = _assinatura();
+  }
+
+  /// Retrato do formulário, para saber se houve alteração.
+  String _assinatura() => jsonEncode({
+        'nome': _nome.text.trim(),
+        'obs': _obs.text.trim(),
+        'outra': _outra.text.trim(),
+        'vaiLer': _l.vaiLer,
+        'anima': _l.fazAnimacao.name,
+        'domingo': _l.leDomingo,
+        'horarios': _l.horariosDomingo.toList()..sort(),
+        'quinta': _l.leQuinta.name,
+        'festa': _l.leFesta,
+        'pastoral': _l.soPastoral,
+        'par': _l.parId,
+        'ultima': _l.ultimaParticipacao?.toIso8601String(),
+        'regras': [for (final r in _l.regras) r.toJson()],
+      });
+
+  bool get _modificado => _assinatura() != _assinaturaInicial;
+
+  /// Voltar com alterações: salvar, descartar ou continuar editando.
+  Future<void> _aoVoltar() async {
+    if (!_modificado) {
+      Navigator.pop(context);
+      return;
+    }
+    final escolha = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Salvar as alterações?'),
+        content: const Text('Você modificou este leitor.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, 'descartar'), child: const Text('Descartar')),
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Continuar editando')),
+          FilledButton(onPressed: () => Navigator.pop(c, 'salvar'), child: const Text('Salvar')),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (escolha == 'salvar') {
+      await _salvar();
+    } else if (escolha == 'descartar') {
+      Navigator.pop(context);
+    }
+  }
 
   @override
   void dispose() {
@@ -46,8 +100,13 @@ class _LeitorFormPageState extends ConsumerState<LeitorFormPage> {
     String? erro;
     if (nome.isEmpty) {
       erro = 'Informe o nome';
-    } else if (await repo.nomeEmUso(nome, excetoId: _l.id == 0 ? null : _l.id)) {
-      erro = 'Já existe um leitor com esse nome';
+    } else {
+      final outro = await repo.leitorComNome(nome, excetoId: _l.id == 0 ? null : _l.id);
+      if (outro != null) {
+        erro = outro.excluidoEm == null
+            ? 'Já existe um leitor com esse nome'
+            : 'Há um leitor excluído com esse nome: restaure em Configurações > Backup';
+      }
     }
     if (erro != null) {
       setState(() => _erroNome = erro);
@@ -68,11 +127,8 @@ class _LeitorFormPageState extends ConsumerState<LeitorFormPage> {
   }
 
   Future<void> _excluir() async {
-    if (!await confirmar(context, 'Excluir ${_l.nome}?',
-        'O nome continua nas escalas já feitas, como texto. Dá para desfazer.', ok: 'Excluir')) {
-      return;
-    }
-    await ref.read(repoProvider).excluirLeitor(_l.id);
+    if (!await confirmarExclusaoLeitores(context, [_l.nome])) return;
+    await ref.read(repoProvider).excluirLeitores([_l.id]);
     if (!mounted) return;
     avisarComDesfazer(context, ref, '${_l.nome} excluído');
     Navigator.pop(context);
@@ -107,6 +163,24 @@ class _LeitorFormPageState extends ConsumerState<LeitorFormPage> {
     final ultimaHist = _l.id == 0 ? null : Historico(hist).ultimaAntes(_l.copyWith(ultimaParticipacao: () => null),
         DateTime.now().toUtc().add(const Duration(days: 1)));
 
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (saiu, _) {
+        if (!saiu) _aoVoltar();
+      },
+      child: _corpo(context, cfg, todos, horasDomingo, pastorais, valorPastoral, ultimaHist),
+    );
+  }
+
+  Widget _corpo(
+    BuildContext context,
+    Configuracao cfg,
+    List<Leitor> todos,
+    List<String> horasDomingo,
+    List<String> pastorais,
+    String? valorPastoral,
+    DateTime? ultimaHist,
+  ) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_l.id == 0 ? 'Novo leitor' : 'Editar leitor'),

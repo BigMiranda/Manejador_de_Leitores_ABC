@@ -10,6 +10,8 @@ List<Leitor> leitoresFicticios(int n) => [
         Leitor(
           id: i,
           nome: 'Leitor $i',
+          leQuinta: LeQuinta.sim,
+          leFesta: true,
           fazAnimacao: i % 5 == 0
               ? FazAnimacao.simPrefere
               : i % 7 == 0
@@ -54,9 +56,9 @@ void main() {
 
   test('"Sim, mas prefere ler" só anima se faltar quem prefere', () {
     final leitores = [
-      const Leitor(id: 1, nome: 'Prefere', fazAnimacao: FazAnimacao.simPrefere),
-      const Leitor(id: 2, nome: 'Prefere ler', fazAnimacao: FazAnimacao.simPrefereLer),
-      for (var i = 3; i <= 10; i++) Leitor(id: i, nome: 'L$i'),
+      const Leitor(id: 1, nome: 'Prefere', fazAnimacao: FazAnimacao.simPrefere, leQuinta: LeQuinta.sim),
+      const Leitor(id: 2, nome: 'Prefere ler', fazAnimacao: FazAnimacao.simPrefereLer, leQuinta: LeQuinta.sim),
+      for (var i = 3; i <= 10; i++) Leitor(id: i, nome: 'L$i', leQuinta: LeQuinta.sim),
     ];
     final c = Celebracao(
       id: 1,
@@ -180,9 +182,14 @@ void main() {
         id: 2, data: DateTime.utc(2026, 6, 4), hora: '19:30', tipo: TipoCelebracao.quinta, funcoes: const []);
     expect(motivosInelegivel(const Leitor(id: 1, nome: 'a', leQuinta: LeQuinta.nao), quinta, Funcao.leitura1), isNotEmpty);
     expect(motivosInelegivel(const Leitor(id: 1, nome: 'a', leQuinta: LeQuinta.asVezes), quinta, Funcao.leitura1), isEmpty);
+    expect(motivosInelegivel(const Leitor(id: 1, nome: 'a'), quinta, Funcao.leitura1), isNotEmpty,
+        reason: 'por padrão não lê de quinta');
     final festa = Celebracao(
         id: 3, data: DateTime.utc(2026, 11, 2), hora: '09:00', tipo: TipoCelebracao.festa, funcoes: const []);
-    expect(motivosInelegivel(const Leitor(id: 1, nome: 'a', leFesta: false), festa, Funcao.leitura1), isNotEmpty);
+    expect(motivosInelegivel(const Leitor(id: 1, nome: 'a'), festa, Funcao.leitura1), isNotEmpty,
+        reason: 'por padrão não lê em festa');
+    expect(motivosInelegivel(const Leitor(id: 1, nome: 'a', leFesta: true), festa, Funcao.leitura1), isEmpty);
+    expect(motivosInelegivel(Leitor(id: 1, nome: 'a', excluidoEm: DateTime(2026)), c, Funcao.leitura1), isNotEmpty);
   });
 
   test('justiça ao longo de 12 meses simulados com 100 leitores', () {

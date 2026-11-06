@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -59,6 +61,79 @@ Future<bool> confirmar(BuildContext context, String titulo, String texto, {Strin
     ),
   );
   return r ?? false;
+}
+
+/// Confirmação de exclusão de leitores com contagem regressiva:
+/// 3 s para um leitor, 10 s para mais de um.
+Future<bool> confirmarExclusaoLeitores(BuildContext context, List<String> nomes) async {
+  final r = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _DialogoExclusao(nomes),
+  );
+  return r ?? false;
+}
+
+class _DialogoExclusao extends StatefulWidget {
+  const _DialogoExclusao(this.nomes);
+  final List<String> nomes;
+
+  @override
+  State<_DialogoExclusao> createState() => _DialogoExclusaoState();
+}
+
+class _DialogoExclusaoState extends State<_DialogoExclusao> {
+  late int _restante = widget.nomes.length == 1 ? 3 : 10;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      setState(() => _restante--);
+      if (_restante <= 0) t.cancel();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final n = widget.nomes.length;
+    final lista = widget.nomes.take(8).join(', ') + (n > 8 ? ' e mais ${n - 8}' : '');
+    return AlertDialog(
+      icon: Icon(Icons.delete_forever, color: cs.error, size: 36),
+      title: Text(n == 1 ? 'Excluir leitor?' : 'Excluir $n leitores?'),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(lista, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Text(
+          n == 1
+              ? 'Este leitor será EXCLUÍDO. As configurações dele serão perdidas.'
+              : 'Estes $n leitores serão EXCLUÍDOS. As configurações deles serão perdidas.',
+          style: TextStyle(color: cs.error, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Se precisar, podem ser recuperados em Configurações > Backup > Restaurar leitores excluídos. '
+          'As escalas já feitas continuam com o nome.',
+        ),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: cs.error, foregroundColor: cs.onError),
+          onPressed: _restante > 0 ? null : () => Navigator.pop(context, true),
+          child: Text(_restante > 0 ? 'Excluir ($_restante)' : 'Excluir'),
+        ),
+      ],
+    );
+  }
 }
 
 /// Botões de desfazer/refazer para a barra superior.
