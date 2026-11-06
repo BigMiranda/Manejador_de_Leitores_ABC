@@ -181,7 +181,7 @@ class _LeitorFormPageState extends ConsumerState<LeitorFormPage> {
     String? valorPastoral,
     DateTime? ultimaHist,
   ) {
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(
         title: Text(_l.id == 0 ? 'Novo leitor' : 'Editar leitor'),
         actions: [
@@ -571,7 +571,7 @@ class _RegraPageState extends State<RegraPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(
         title: Text(widget.regra == null ? 'Nova regra' : 'Editar regra'),
         actions: [

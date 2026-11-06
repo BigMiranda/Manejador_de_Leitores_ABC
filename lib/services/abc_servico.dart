@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/abc_parser.dart';
+import '../core/mensagens.dart';
 import '../core/modelos.dart';
 import '../data/repositorio.dart';
 
@@ -160,6 +161,18 @@ class AbcServico {
       }
     }
     return ResultadoSincronizacao(edicoes: edicoes.length, ok: ok, naoPublicado: nao, erro: erro);
+  }
+
+  /// Nome da edição do ABC para o dia (da lista guardada), se houver.
+  Future<String?> nomeDaEdicao(DateTime dia) async => indexarPorData(await listaEmCache())[soDia(dia)]?.nome;
+
+  /// Cópia do PDF em cache com nome legível, para compartilhar:
+  /// "Liturgia Missa 08-11-2026 32º domingo do tempo comum.pdf".
+  Future<File> pdfParaCompartilhar(Celebracao c) async {
+    final nome = await nomeDaEdicao(c.data) ?? c.nomeLiturgico;
+    final pasta = Directory(p.join((await getTemporaryDirectory()).path, 'liturgia'));
+    await pasta.create(recursive: true);
+    return File(c.pdfArquivo!).copy(p.join(pasta.path, nomeArquivoLiturgia(c.data, nome)));
   }
 
   /// Baixa o PDF de uma URL colada à mão para uma celebração.

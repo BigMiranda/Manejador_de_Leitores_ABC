@@ -53,6 +53,42 @@ String preencherModelo(String modelo, Map<String, String?> valores) {
 bool _ehDiaDeQuinta(List<MissaDoDia> missas) =>
     missas.every((m) => m.celebracao.tipo == TipoCelebracao.quinta);
 
+// Palavras que continuam com maiúscula ao passar o nome litúrgico para minúsculas.
+const _maiusculas = {
+  'deus', 'senhor', 'jesus', 'cristo', 'maria', 'josé', 'joão', 'batista', 'pedro', 'paulo',
+  'aparecida', 'espírito', 'rei', 'universo', 'imaculada', 'conceição', 'natal', 'páscoa',
+  'pentecostes', 'trindade', 'corpus', 'christi', 'sagrado', 'coração', 'advento', 'quaresma',
+};
+
+/// "32º DOMINGO DO TEMPO COMUM" → "32º domingo do tempo comum";
+/// "NOSSO SENHOR JESUS CRISTO, REI DO UNIVERSO" → "Nosso Senhor Jesus Cristo, Rei do Universo".
+String nomeLiturgicoLegivel(String nome) {
+  final t = nome.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (t != t.toUpperCase()) return t; // já veio em caixa mista: respeita
+  final palavras = t.toLowerCase().split(' ');
+  for (var i = 0; i < palavras.length; i++) {
+    final p = palavras[i];
+    final limpa = p.replaceAll(RegExp(r'[^\p{L}]', unicode: true), '');
+    final nomeProprio = _maiusculas.contains(limpa) || (limpa == 'santo' && i > 0 && palavras[i - 1].toLowerCase() == 'espírito');
+    if (nomeProprio || (i == 0 && RegExp(r'^\p{L}', unicode: true).hasMatch(p))) {
+      final k = p.indexOf(RegExp(r'\p{L}', unicode: true));
+      palavras[i] = p.substring(0, k) + p[k].toUpperCase() + p.substring(k + 1);
+    }
+  }
+  return palavras.join(' ');
+}
+
+/// Nome do arquivo do PDF compartilhado:
+/// "Liturgia Missa 08-11-2026 32º domingo do tempo comum.pdf".
+/// (O Android não aceita "/" em nome de arquivo.)
+String nomeArquivoLiturgia(DateTime dia, String? nomeLiturgico) {
+  final data = '${dia.day.toString().padLeft(2, '0')}-${dia.month.toString().padLeft(2, '0')}-${dia.year}';
+  final nome = nomeLiturgico == null || nomeLiturgico.trim().isEmpty
+      ? ''
+      : ' ${nomeLiturgicoLegivel(nomeLiturgico).replaceAll(RegExp(r'[\\/:*?"<>|]'), '-')}';
+  return 'Liturgia Missa $data$nome.pdf';
+}
+
 /// Se o envio da véspera inclui o PDF da liturgia (domingo e festa).
 bool levaPdf(List<Celebracao> celebracoesDoDia) => celebracoesDoDia
     .any((c) => c.tipo == TipoCelebracao.domingo || c.tipo == TipoCelebracao.festa);

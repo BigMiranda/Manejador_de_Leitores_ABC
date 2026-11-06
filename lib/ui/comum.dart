@@ -5,6 +5,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/providers.dart';
 
+/// Scaffold das telas abertas por cima das abas: o conteúdo não fica por
+/// baixo da barra de navegação do celular (Android 15+ é edge-to-edge).
+class TelaSegura extends StatelessWidget {
+  const TelaSegura({super.key, this.appBar, required this.body, this.floatingActionButton});
+  final PreferredSizeWidget? appBar;
+  final Widget body;
+  final Widget? floatingActionButton;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: appBar,
+        floatingActionButton: floatingActionButton,
+        body: SafeArea(top: false, child: body),
+      );
+}
+
 /// Mostra os dados assim que existem (mantendo os anteriores durante recargas).
 class Carregando<T> extends StatelessWidget {
   const Carregando(this.valor, {super.key, required this.builder});

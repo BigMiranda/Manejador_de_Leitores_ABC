@@ -150,7 +150,7 @@ Future<(int, int)?> escolherMes(BuildContext context, (int, int) atual) {
 }
 
 void mostrarAvisos(BuildContext context, List<Aviso> avisos) {
-  showModalBottomSheet(
+  showModalBottomSheet(useSafeArea: true,
     context: context,
     showDragHandle: true,
     builder: (_) => ListView(children: [
@@ -524,7 +524,7 @@ Future<void> editarVaga(
     });
   if (!context.mounted) return;
   final repo = ref.read(repoProvider);
-  final resultado = await showModalBottomSheet<Vaga>(
+  final resultado = await showModalBottomSheet<Vaga>(useSafeArea: true,
     context: context,
     isScrollControlled: true,
     showDragHandle: true,

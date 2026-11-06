@@ -106,7 +106,7 @@ class _CelebracaoPageState extends ConsumerState<CelebracaoPage> {
       final achados = await ref.read(abcProvider).buscarPdfsNaMidia(termo.trim());
       if (!mounted) return;
       setState(() => _ocupado = false);
-      final url = await showModalBottomSheet<String>(
+      final url = await showModalBottomSheet<String>(useSafeArea: true,
         context: context,
         showDragHandle: true,
         builder: (_) => achados.isEmpty
@@ -132,7 +132,7 @@ class _CelebracaoPageState extends ConsumerState<CelebracaoPage> {
     final cfg = ref.watch(configProvider).value ?? const Configuracao();
     final pastorais = {pastoralTercoHomens, pastoralTercoMulheres, ...cfg.pastorais.map((p) => p.nome)}.toList();
     final temPdf = !_nova && (_c.tipo == TipoCelebracao.domingo || _c.tipo == TipoCelebracao.festa);
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(
         title: Text(_nova ? 'Nova celebração' : 'Celebração'),
         actions: [
@@ -233,9 +233,10 @@ class _CelebracaoPageState extends ConsumerState<CelebracaoPage> {
                 ? IconButton(
                     tooltip: 'Abrir/compartilhar',
                     icon: const Icon(Icons.share),
-                    onPressed: () => SharePlus.instance.share(ShareParams(
-                      files: [XFile(_c.pdfArquivo!, mimeType: 'application/pdf')],
-                    )),
+                    onPressed: () async {
+                      final f = await ref.read(abcProvider).pdfParaCompartilhar(_c);
+                      await SharePlus.instance.share(ShareParams(files: [XFile(f.path, mimeType: 'application/pdf')]));
+                    },
                   )
                 : null,
           ),

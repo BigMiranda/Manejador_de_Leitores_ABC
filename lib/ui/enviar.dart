@@ -19,11 +19,10 @@ class _DadosEnvio {
   final List<MissaDoDia> missas;
   final ModelosMensagem modelos;
 
-  File? get pdf {
+  /// Celebração do dia que já tem o PDF baixado.
+  Celebracao? get comPdf {
     for (final c in envio?.celebracoes ?? const <Celebracao>[]) {
-      if (c.pdfStatus == StatusPdf.ok && c.pdfArquivo != null && File(c.pdfArquivo!).existsSync()) {
-        return File(c.pdfArquivo!);
-      }
+      if (c.pdfStatus == StatusPdf.ok && c.pdfArquivo != null && File(c.pdfArquivo!).existsSync()) return c;
     }
     return null;
   }
@@ -100,7 +99,7 @@ class _EnviarPageState extends ConsumerState<EnviarPage> {
   Widget build(BuildContext context) {
     final dados = ref.watch(_envioProvider(soDia(widget.dia)));
     final d = widget.dia;
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(title: Text('Enviar · ${diaSemanaExtenso(d)} ${dataCurtaBr(d)}')),
       body: Carregando(dados, builder: (dd) {
         if (!_preenchido && dd.missas.isNotEmpty) {
@@ -109,7 +108,7 @@ class _EnviarPageState extends ConsumerState<EnviarPage> {
         }
         final envio = dd.envio;
         if (envio == null) return const Center(child: Text('Não há celebração com mensagem neste dia.'));
-        final pdf = dd.pdf;
+        final pdf = dd.comPdf;
         return ListView(padding: const EdgeInsets.all(16), children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -150,9 +149,10 @@ class _EnviarPageState extends ConsumerState<EnviarPage> {
             const SizedBox(height: 12),
             if (pdf != null)
               FilledButton.tonalIcon(
-                onPressed: () => SharePlus.instance.share(ShareParams(
-                  files: [XFile(pdf.path, mimeType: 'application/pdf')],
-                )),
+                onPressed: () async {
+                  final f = await ref.read(abcProvider).pdfParaCompartilhar(pdf);
+                  await SharePlus.instance.share(ShareParams(files: [XFile(f.path, mimeType: 'application/pdf')]));
+                },
                 icon: const Icon(Icons.picture_as_pdf),
                 label: const Text('2. Enviar PDF da liturgia'),
               )

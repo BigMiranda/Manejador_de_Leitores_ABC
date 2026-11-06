@@ -14,7 +14,7 @@ class FestasPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hoje = soDia(DateTime.now());
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(title: const Text('Festas e Semana Santa')),
       body: Carregando(ref.watch(configProvider), builder: (cfg) {
         final festas = cfg.festas;
@@ -98,7 +98,7 @@ class _RestaurarExcluidosPageState extends ConsumerState<RestaurarExcluidosPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(title: const Text('Leitores excluídos')),
       floatingActionButton: _marcados.isEmpty
           ? null

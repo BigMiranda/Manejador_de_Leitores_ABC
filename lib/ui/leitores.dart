@@ -298,7 +298,7 @@ class _EdicaoEmLotePageState extends ConsumerState<EdicaoEmLotePage> {
     final horas = cfg.missasDomingo.map((m) => m.hora).toList()..sort();
     final pastorais = {pastoralTercoHomens, pastoralTercoMulheres, ...cfg.pastorais.map((p) => p.nome)};
     final n = widget.leitores.length;
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(title: Text('Editar $n leitores')),
       body: ListView(padding: const EdgeInsets.only(bottom: 32), children: [
         Padding(

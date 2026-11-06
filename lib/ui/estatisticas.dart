@@ -38,7 +38,7 @@ class EstatisticasPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
+      child: TelaSegura(
         appBar: AppBar(
           title: Text('Estatísticas · ${mesesExtenso[mes - 1]} $ano'),
           bottom: const TabBar(tabs: [Tab(text: 'Mês e leitores'), Tab(text: 'Visão anual')]),

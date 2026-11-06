@@ -318,7 +318,7 @@ class _BackupsInternosPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final servico = ref.watch(backupProvider);
-    return Scaffold(
+    return TelaSegura(
       appBar: AppBar(title: const Text('Backups internos')),
       body: FutureBuilder<List<ArquivoBackup>>(
         future: servico.listar(),
@@ -386,7 +386,7 @@ class _TextosPageState extends ConsumerState<TextosPage> {
               decoration: InputDecoration(labelText: rotulo, border: const OutlineInputBorder()),
             ),
           );
-      return Scaffold(
+      return TelaSegura(
         appBar: AppBar(
           title: const Text('Textos das mensagens'),
           actions: [

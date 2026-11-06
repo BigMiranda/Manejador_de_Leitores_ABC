@@ -224,6 +224,23 @@ Boa missa a todos.'''));
     expect(ModelosMensagem.fromJson({'domingoBloco': 'meu texto {hora}'}).domingoBloco, 'meu texto {hora}');
   });
 
+  test('nome do arquivo do PDF da liturgia', () {
+    expect(
+      nomeArquivoLiturgia(DateTime.utc(2026, 11, 8), '32º DOMINGO DO TEMPO COMUM'),
+      'Liturgia Missa 08-11-2026 32º domingo do tempo comum.pdf',
+    );
+    expect(
+      nomeArquivoLiturgia(DateTime.utc(2026, 11, 22), 'NOSSO SENHOR JESUS CRISTO, REI DO UNIVERSO'),
+      'Liturgia Missa 22-11-2026 Nosso Senhor Jesus Cristo, Rei do Universo.pdf',
+    );
+    expect(
+      nomeArquivoLiturgia(DateTime.utc(2026, 5, 24), 'SOLENIDADE DE PENTECOSTES / ESPÍRITO SANTO'),
+      'Liturgia Missa 24-05-2026 Solenidade de Pentecostes - Espírito Santo.pdf',
+    );
+    expect(nomeArquivoLiturgia(DateTime.utc(2026, 11, 2), 'Finados'), 'Liturgia Missa 02-11-2026 Finados.pdf');
+    expect(nomeArquivoLiturgia(DateTime.utc(2026, 6, 7), null), 'Liturgia Missa 07-06-2026.pdf');
+  });
+
   test('PDF só vai em domingo e festa', () {
     expect(levaPdf([domingo(1, '07:00')]), isTrue);
     expect(
